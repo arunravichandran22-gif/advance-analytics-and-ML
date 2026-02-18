@@ -1,10 +1,6 @@
 ---
 title: "Advanced analytics and machine learning assignment 2"
-output:
-  pdf_document: default
-  html_document:
-    df_print: paged
-date: "2023-05-06"
+
 ---
 
 INTRODUCTION

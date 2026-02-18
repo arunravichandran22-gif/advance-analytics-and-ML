@@ -1,0 +1,910 @@
+---
+title: "Advanced analytics and machine learning assignment 2"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+date: "2023-05-06"
+---
+
+INTRODUCTION
+The data includes details about Airbnb rentals, including listing costs and different variables like location and the number of beds. The code's objective is to create models that forecast listing prices based on these characteristics. In addition to cross-validation methods to assess model performance, the regression tree, polynomial regression, ridge and lasso regression, and support vector machines models. All of these models use supervised learning to predict the result of fresh, unlabeled data by learning from labelled training data.
+
+METHODOLOGY
+
+Firstly read the CSV file named "Data.csv" from the working directory and stores it in a data frame called data. The summary function is then called on the data data frame, which provides a summary of the data
+```{r}
+
+setwd("D:/advance analytics and machine learning")
+dir()
+data <- read.csv("Data.csv")
+summary(data)
+```
+Install the required packages
+```{r}
+
+library(Matrix)
+library(epiDisplay)
+library(dplyr)
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ISLR2)
+```
+If the data object is not already in a data frame format, it is converted to one using the as.data.frame function. Any character columns in the data will be regarded as strings rather than factors because the stringsAsFactors parameter is set to FALSE. 
+```{r}
+data1 <- as.data.frame((data), stringsAsFactors = FALSE)
+attach(data1)
+
+```
+
+DATA CLEANING
+
+Data cleaning is the main part of an analysis where the objective is to prepare the data for subsequent analysis or modelling by cleaning, preprocessing, and transforming it. Column removal is done where particular columns from the dataset, including 1, 3, 5, 12, 16, 22, 30, 37, 38, and 46. Changing NA and N/A values to NA where all character columns that have "NA" or "N/A" values are changed. The "mutate_if" function from the "dplyr" package is used for this phase. Missing values in particular columns are handled by replacing them, depending on the situation, with the mode, most frequent value or mean. While mean is used for continuous numeric data, mode is utilised for categorical variables.
+
+Data type conversions are made with the "as.numeric" function is used to change the data types of several columns from character to numeric. Removal of outliers using a set of criteria, outliers are eliminated from the "bathrooms_text" column.
+Data type conversions, where the "mutate" function from the "dplyr" package is used to further transform the character columns to factors. The "as.numeric" function converts logical columns to numeric data types.Missing value management is done with the dataset's remaining missing values (NA) are all changed to a value of 0. Data transformation is made To lessen the impact of extreme numbers, the values in the "host_listings_count," "bedrooms," and "beds" columns are capped at particular thresholds (5, 5, and 10, respectively). Additional data transformation is done to group particular categories together, the "bathrooms_text" field is further transformed.
+```{r}
+#Data_cleaning
+data1 <- data1[, -c(1,3,5,12,16,22,30,37,38,46)]
+
+#Replace with NA
+data1 <- data1 %>%
+  mutate_if(is.character, function(x) ifelse(grepl("N/A", x), NA, x))
+
+data1 <- data1 %>%
+  mutate_if(is.character, function(x) ifelse(grepl("NA", x), NA, x))
+
+#mode of the column
+mode_val <- names(which.max(table(data1$host_response_time)))
+data1$host_response_time[is.na(data1$host_response_time)] <- mode_val
+
+# mode of the column
+mode_val <- names(which.max(table(data1$host_response_rate)))
+data1$host_response_rate[is.na(data1$host_response_rate)] <- mode_val
+
+#character to Numeric
+data1$host_response_rate <- as.numeric(data1$host_response_rate)
+
+#mode of the column
+mode_val <- names(which.max(table(data1$host_acceptance_rate)))
+data1$host_acceptance_rate[is.na(data1$host_acceptance_rate)] <- mode_val
+# Convert from character to Numeric
+data1$host_acceptance_rate <- as.numeric(data1$host_acceptance_rate)
+
+#mode of the column
+mode_val <- names(which.max(table(data1$bathrooms_text)))
+data1$bathrooms_text[is.na(data1$bathrooms_text)] <- mode_val
+
+#mean/most frequent value
+
+data1$bedrooms <- as.numeric(data1$bedrooms)
+data1$bedrooms[is.na(data1$bedrooms)] <- mean(data1$bedrooms, na.rm = TRUE)
+
+data1$beds <- as.numeric(data1$beds)
+data1$beds[is.na(data1$beds)] <- mean(data1$beds, na.rm = TRUE)
+
+data1$review_scores_rating <- as.numeric(data1$review_scores_rating)
+data1$review_scores_rating[is.na(data1$review_scores_rating)] <- mean(data1$review_scores_rating, na.rm = TRUE)
+
+data1$review_scores_cleanliness <- as.numeric(data1$review_scores_cleanliness)
+data1$review_scores_cleanliness[is.na(data1$review_scores_cleanliness)] <- mean(data1$review_scores_cleanliness, na.rm = TRUE)
+
+data1$review_scores_checkin <- as.numeric(data1$review_scores_checkin)
+data1$review_scores_checkin[is.na(data1$review_scores_checkin)] <- mean(data1$review_scores_checkin, na.rm = TRUE)
+
+data1$review_scores_communication <- as.numeric(data1$review_scores_communication)
+data1$review_scores_communication[is.na(data1$review_scores_communication)] <- mean(data1$review_scores_communication, na.rm = TRUE)
+
+data1$review_scores_location <- as.numeric(data1$review_scores_location)
+data1$review_scores_location[is.na(data1$review_scores_location)] <- mean(data1$review_scores_location, na.rm = TRUE)
+
+data1$review_scores_value <- as.numeric(data1$review_scores_value)
+data1$review_scores_value[is.na(data1$review_scores_value)] <- mean(data1$review_scores_value, na.rm = TRUE)
+
+data1$host_since<- as.numeric(data1$host_since)
+data1$host_since[is.na(data1$review_scores_value)] <- mean(data1$host_since, na.rm = TRUE)
+
+data1$host_neighbourhood<- as.numeric(data1$host_neighbourhood)
+data1$host_neighbourhood[is.na(data1$host_neighbourhood)] <- mean(data1$host_since, na.rm = TRUE)
+
+data1$neighbourhood<- as.numeric(data1$neighbourhood)
+data1$neighbourhood[is.na(data1$neighbourhood)] <- mean(data1$host_since, na.rm = TRUE)
+
+data1$reviews_per_month <- as.numeric(data1$reviews_per_month)
+data1$reviews_per_month[is.na(data1$reviews_per_month)] <- mean(data1$reviews_per_month, na.rm = TRUE)
+
+
+#Drop outliers 
+
+data1 <- subset(data1, bathrooms_text != "0 baths" & bathrooms_text != "Half-bath" & bathrooms_text != "0 shared baths")
+
+
+#Convert "character" to "factor"
+data1 = data1 %>%
+  mutate(across(where(is.character),factor))
+
+# Convert "logical"to "numeric"
+data1$host_is_superhost <- as.numeric(data1$host_is_superhost)
+data1$host_has_profile_pic <- as.numeric(data1$host_has_profile_pic)
+data1$host_identity_verified <- as.numeric(data1$host_identity_verified)
+data1$has_availability <- as.numeric(data1$has_availability)
+data1$instant_bookable <- as.numeric(data1$instant_bookable)
+
+#Drop
+data1[is.na(data1)] <- 0
+
+summary(data1)
+
+#count at 5
+data1$host_listings_count[data1$host_listings_count > 5] <- 5
+data1$bedrooms[data1$bedrooms > 5] <- 5
+data1$beds[data1$beds > 10] <- 10
+
+data1$bathrooms_text <- ifelse(data1$bathrooms_text == "4.5 baths", "4 baths",
+                                   ifelse(data1$bathrooms_text == "5 baths", "4 baths",
+                                          ifelse(data1$bathrooms_text == "5.5 baths", "4 baths",
+                                                 ifelse(data1$bathrooms_text == "11 baths", "4 baths", data1$bathrooms_text))))
+```
+ANALYSIS
+
+These lines of code do an analysis on the city variable in the data1 data frame by factorising it, creating a frequency table with cumulative percentages that is sorted by decreasing frequency, presenting the outcomes in a data frame, and providing summary statistics. Berlin_15_Sep_2022_listings (1).csv  has the highest frequency compared to other two
+
+```{r}
+#Analysis
+data1$crrr <- as.factor(data1$city)
+Freq_table <- tab1(data1$crrr, sort.group = "decreasing", cum.percent = TRUE)
+Freq_df <- as.data.frame(Freq_table$output.table)
+View(Freq_df)
+summary(data1$crrr)
+```
+VISUALIZATION
+```{r}
+#Visualizations
+
+#Host Response Time
+GBarplot <- ggplot(data1, aes(x = reorder(host_response_time, host_response_time, function(x) -length(x)))) +
+  geom_bar(fill = 'pink') +  labs(x = 'Host Response Time')
+GBarplot + theme(text = element_text(size = 10))
+
+#id vs host_listings_count
+ggplot(data1, aes(x = id, y = host_listings_count, color = id)) + 
+  geom_point() +
+  labs(x = "id", y = "host_listings_count", color = "id") +
+  ggtitle("Scatter Plot of id vs host_listings_count")
+
+#accommodates by beds
+ggplot(data1, aes(x = accommodates, y = beds)) + 
+  geom_boxplot() +
+  labs(x = "accommodates", y = "beds") +
+  ggtitle("Box Plot of accommodates by beds")
+
+#Bedrooms vs Beds
+ggplot(data1, aes(x = bedrooms, y = beds)) +
+  geom_point(color = "red") +
+  labs(x = "Bedrooms", y = "Beds", title = "Scatter Plot of Bedrooms vs Beds")
+
+#Min and Max Nights by ID
+ggplot(data1, aes(x = id, y = minimum_nights, group = 1)) +
+  geom_line(color = "purple") +
+  geom_line(aes(y = maximum_nights), color = "yellow") +
+  labs(x = "ID", y = "Number of Nights") +
+  ggtitle("Minimum and Maximum Nights by ID")
+
+#Room Type vs Property Type
+ggplot(data1, aes(x = room_type, y = property_type)) +
+  geom_point(color = "yellow") +
+  labs(x = "Room Type", y = "Property Type", title = "Scatter Plot of Room Type vs Property Type")
+
+#beds, bedrooms vs price
+ggplot(data1, aes(x = price, y = beds)) +
+  geom_point() +
+  labs(x = "price", y = "beds") +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(bedrooms ~ .)
+
+#ID vs accommodates
+ggplot(data1, aes(x = id, y = accommodates, color = accommodates)) + 
+geom_point() +
+  labs(x = "ID", y = "accommodates", color = "accommodates") +
+  ggtitle("Scatter Plot of listing ID vs accommodates")
+
+#reviews vs Reviews per Month
+ggplot(data1, aes(x = number_of_reviews, y = reviews_per_month)) +
+  geom_point(color = "orange") +
+  labs(x = "Number of reviews", y = "Reviews per Month", title = "Scatter Plot of Number of reviews vs Reviews per Month")
+
+```
+
+
+CORRELATION
+
+The ggcorrplot function from the ggcorrplot package is used to display the matrix and a visual representation of it after the code computes the Pearson correlation matrix between all numeric variables in the data1 data frame. The resulting graphic displays pairwise correlations between variables as a matrix with color-coded columns to denote the correlation's strength and direction.
+```{r}
+#Correlation
+correlation_matrix <- cor(data1[, sapply(data1, is.numeric)], method = "pearson")
+print(correlation_matrix)
+
+#correlation matrix
+
+library(ggcorrplot)
+ggcorrplot(correlation_matrix)
+
+
+```
+This does Lasso regression on the data1 dataset using the glmnet package. The data is divided into a training set and a test set, and the cross-validation method is used to find the ideal value of the parameter (lambda) for the Lasso model using the cv.glmnet function. The generated plot illustrates the connection between the cross-validation error and lambda's value. The final Lasso model is then fitted with the best lambda value using the glmnet function. By removing the coefficients with nonzero values, the model's key characteristics are found, and the appropriate column names are reported. The table function is then used to create a frequency table for the city variable in data1. Important features that can be potentially used is diplayed and the graph shows the mean square value increased at 2 lambda
+```{r}
+
+#Lasso model
+
+library(glmnet)
+
+#data split
+train_idx <- sample(nrow(data1), nrow(data1)*0.7)
+train_data <- data1[train_idx, ]
+test_data <- data1[-train_idx, ]
+
+x_train <- data.matrix(train_data[, -which(names(train_data) == "price")])
+y_train <- train_data$price
+y_train <- as.numeric(y_train)
+
+lasso_model <- cv.glmnet(x_train, y_train, alpha = 1, standardize = TRUE)
+plot(lasso_model)
+
+optimal_lambda <- lasso_model$lambda.min
+final_lasso_model <- glmnet(x_train, y_train, alpha = 1, standardize = TRUE, lambda = optimal_lambda)
+lasso_coef <- coef(final_lasso_model)
+
+#Print 
+important_features <- which(lasso_coef != 0)
+names(important_features) <- colnames(x_train)[important_features]
+names(important_features)
+
+city_count <- table(data1$city)
+print(city_count)
+
+```
+Dataset A consist of "Berlin_15_Sep_2022_listings (1).csv" and Dataset B consist of "Athens_20_Sep_2022_listings (1).csv", "Brussels_18_Sep_2022_listings (1).csv" and is split into two
+```{r}
+#splitting dataset
+DataSetA = subset(data1, city %in% "Berlin_15_Sep_2022_listings (1).csv")
+DataSetB = subset(data1, city %in% c("Athens_20_Sep_2022_listings (1).csv", "Brussels_18_Sep_2022_listings (1).csv"))
+
+```
+
+REGRESSION TREE
+
+The output shows that the tree has one node (node number 1) and is based on all the available predictors. There are 1889 observations in the training set. The mean of the response variable price in the training set is 164.9264, and the mean squared error (MSE) is 4723.153.
+```{r}
+#Fitting regression trees
+
+library(rpart)
+
+cleaned_data <- DataSetA[, c("price", "host_response_time", "room_type", "city", "crrr")]
+
+#convert price numeric
+cleaned_data$price <- gsub(",", "", cleaned_data$price)
+cleaned_data$price <- gsub("\\$", "", cleaned_data$price)
+cleaned_data$price <- as.numeric(cleaned_data$price)
+
+set.seed(123)
+train_index <- sample(1:nrow(cleaned_data), round(0.7 * nrow(cleaned_data)))
+train_clean <- cleaned_data[train_index, ]
+test_clean <- cleaned_data[-train_index, ]
+
+#decision tree model
+model <- rpart(price ~ host_response_time + room_type + city + crrr, data = train_clean)
+
+# Print the tree model summary
+summary(model)
+
+
+
+```
+POLYNOMIAL REGRESSION
+
+With a train-test split of 70–30, this algorithm does polynomial regression on the price variable using the accommodates variable up to degree 4. The data and fitted curve are then plotted, and the root mean squared error RMSE between the anticipated and actual prices on the test set is calculated. The code's goal is to simulate the relationship between a listing's capacity for guests and its price, and to use RMSE to assess the model's performance on a test set.The graph represents the variation between accommodates and price.
+```{r}
+#DatasetA
+# Polynomial regression
+DataSetA$price <- as.numeric(DataSetA$price)
+DataSetA$accommodates <- as.numeric(DataSetA$accommodates)
+fit <- lm(price ~ poly(accommodates, 4), data = DataSetA)
+
+
+DataSetA <- na.omit(DataSetA)
+
+library(ggplot2)
+
+set.seed(123)
+split_ratio <- 0.7
+train_index <- sample(1:nrow(DataSetA), round(nrow(DataSetA) * split_ratio))
+train_data <- DataSetA[train_index, ]
+test_data <- DataSetA[-train_index, ]
+
+# Polynomial regression
+fit <- lm(price ~ poly(accommodates, 4), data = train_data)
+
+#predictions 
+preds <- predict(fit, newdata = test_data)
+
+#RMSE
+rmse <- sqrt(mean((test_data$price - preds)^2))
+
+#Print RMSE
+cat("Polynomial regression RMSE:", rmse, "\n")
+
+#Plot 
+ggplot(DataSetA, aes(x = accommodates, y = price)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 4), se = FALSE, color = "blue") +
+  theme_minimal()
+
+
+```
+
+SVM model for Dataset A
+
+The bedrooms variable is used as the predictor in a support vector machine (SVM) model that is created using the e1071 package. The bedrooms variable is created using the dummyVars function, and the generated data is pre-processed by centering and scaling. The SVM model is then fitted using the svm function with a radial basis function kernel after the data has been divided into training and testing sets. The mean squared error (MSE) and root mean squared error (RMSE) between the projected and actual prices on the test set are then determined. The model is then used to generate predictions on the test set. The program's objective is to assess how well the SVM model predicts listing prices based on the number of bedrooms
+```{r}
+# Svm model DATASET A
+library(caTools)
+library(e1071)
+library(caret)
+library(caTools)
+
+
+set.seed(123)
+split_index <- sample.split(DataSetA$price, SplitRatio = 0.7)
+
+
+dummy_var_transform <- dummyVars(price ~ ., data = DataSetA)
+data_proc <- predict(dummy_var_transform, DataSetA)
+
+preProc <- preProcess(data_proc, method = c("center", "scale"))
+data4 <- predict(preProc, data_proc)
+
+
+train4 <- data4[split_index, ]
+test4 <- data4[!split_index, ]
+
+#SVM model
+x_train <- train4
+y_train <- DataSetA$price[split_index]
+y_train <- as.numeric(DataSetA$price[split_index])
+
+svm_model <- svm(x_train, y_train, type = "eps-regression", kernel = "radial")
+
+#Predictions
+x_test <- test4
+y_test <- DataSetA$price[!split_index]
+
+svm_preds <- predict(svm_model, x_test)
+
+
+svm_MSE <- mean((y_test - svm_preds)^2)
+svm_RMSE <- sqrt(svm_MSE)
+
+cat("SVM MSE:", svm_MSE, "\n")
+cat("SVM RMSE:", svm_RMSE, "\n")
+
+
+```
+Similarly, the same steps are followed for the dataset b and resultant value SVM RMSE: 71.84281 indicates that the root mean squared error (RMSE) between the predicted and actual prices on the test set for the SVM model is approximately 71.84. The RMSE value indicates the average difference between the predicted and actual price values
+```{r}
+#Svm model DATASET B 
+library(caTools)
+library(e1071)
+library(caret)
+library(caTools)
+
+DataSetB$price <- as.numeric(DataSetB$price)
+
+
+
+set.seed(123)
+split_index <- sample.split(DataSetB$price, SplitRatio = 0.7)
+
+
+dummy_var_transform <- dummyVars(price ~ ., data = DataSetB)
+data_proc <- predict(dummy_var_transform, DataSetB)
+
+preProc <- preProcess(data_proc, method = c("center", "scale"))
+data4 <- predict(preProc, data_proc)
+
+
+train4 <- data4[split_index, ]
+test4 <- data4[!split_index, ]
+
+#SVM model
+x_train <- train4
+y_train <- DataSetB$price[split_index]
+y_train <- as.numeric(DataSetB$price[split_index])
+
+svm_model <- svm(x_train, y_train, type = "eps-regression", kernel = "radial")
+
+#Predictions
+x_test <- test4
+y_test <- DataSetB$price[!split_index]
+
+svm_preds <- predict(svm_model, x_test)
+
+
+svm_MSE <- mean((y_test - svm_preds)^2)
+svm_RMSE <- sqrt(svm_MSE)
+
+cat("SVM MSE:", svm_MSE, "\n")
+cat("SVM RMSE:", svm_RMSE, "\n")
+
+
+```
+CROSS VALIDATION
+
+The performance of a linear regression model on the review_scores_rating variable using the price variable as the predictor is assessed using cross-validation . A linear regression model is fitted using the glm function, and the model's coefficients are printed. The cross-validation process is then carried out on the data using the cv.glm function of the boot library, which calculates the mean squared error (MSE) on a validation set after repeatedly fitting the model to different subsets of the data. The predicted MSE values for every fold of the cross-validation are contained in the delta component of the output object cv.err. The code loops over various degrees of polynomial terms in the linear regression model, and for each degree of the polynomial, it computes the estimated MSE using cross-validation. The calculated MSE values for each degree of the polynomial are contained in the cv.error vector. This code's objectives are to determine the proper degree of polynomial terms to include in the model and to cross-validate the performance of the linear regression model.
+
+The coefficients of the linear regression model produced using the glm and lm functions are included in the output. Each output line's first value is the intercept, and its second value is the price variable's coefficient. The cross-validation of the linear regression model using the glm function is then performed using the cv.glm function from the boot library, and the estimated mean squared error (MSE) for each fold of the cross-validation is recorded in the delta component of the cv.err object. The cross-validation's output displays the delta values for each fold. In the code's final step, it loops over the various degrees of polynomial terms in the linear regression model and computes the estimated MSE for each degree of the polynomial using cross-validation. 
+
+```{r}
+#Cross validation
+# Convert the price variable to numeric
+sum(is.na(DataSetA$review_scores_rating))
+sum(is.na(DataSetA$price))
+DataSetA <- na.omit(DataSetA)
+
+DataSetA$price <- as.numeric(as.character(DataSetA$review_scores_rating))
+
+glm.fit <- glm(review_scores_rating ~ price, data = DataSetA)
+coef(glm.fit)
+
+lm.fit <- lm(review_scores_rating ~ price, data = DataSetA)
+coef(lm.fit)
+
+library(boot)
+glm.fit <- glm(review_scores_rating ~ price, data = DataSetA)
+cv.err <- cv.glm(DataSetA, glm.fit)
+cv.err$delta
+
+cv.error <- rep(0, 10)
+for (i in 1:10) {
+  glm.fit <- glm(review_scores_rating ~ poly(price, i), data = DataSetA)
+  cv.error[i] <- cv.glm(DataSetA, glm.fit)$delta[1]
+}
+cv.error
+```
+CONCLUSION
+
+In terms of performance, the SVM model had a relatively high root mean squared error (RMSE) value of approximately 71.84, indicating that it may not be the best model for predicting the listing prices based on the number of bedrooms. The polynomial regression model had a lower RMSE value of 64.48, suggesting that it may perform better in predicting the prices based on the number of people a listing can accommodate. 
+
+
+
+```{r eval=FALSE, include=FALSE}
+#Appendix
+setwd("D:/advance analytics and machine learning")
+dir()
+data <- read.csv("Data.csv")
+summary(data)
+
+library(Matrix)
+library(epiDisplay)
+library(dplyr)
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ISLR2)
+
+data1 <- as.data.frame((data), stringsAsFactors = FALSE)
+attach(data1)
+
+#Data_cleaning
+data1 <- data1[, -c(1,3,5,12,16,22,30,37,38,46)]
+
+#Replace with NA
+data1 <- data1 %>%
+  mutate_if(is.character, function(x) ifelse(grepl("N/A", x), NA, x))
+
+data1 <- data1 %>%
+  mutate_if(is.character, function(x) ifelse(grepl("NA", x), NA, x))
+
+#mode of the column
+mode_val <- names(which.max(table(data1$host_response_time)))
+data1$host_response_time[is.na(data1$host_response_time)] <- mode_val
+
+# mode of the column
+mode_val <- names(which.max(table(data1$host_response_rate)))
+data1$host_response_rate[is.na(data1$host_response_rate)] <- mode_val
+
+#character to Numeric
+data1$host_response_rate <- as.numeric(data1$host_response_rate)
+
+#mode of the column
+mode_val <- names(which.max(table(data1$host_acceptance_rate)))
+data1$host_acceptance_rate[is.na(data1$host_acceptance_rate)] <- mode_val
+# Convert from character to Numeric
+data1$host_acceptance_rate <- as.numeric(data1$host_acceptance_rate)
+
+#mode of the column
+mode_val <- names(which.max(table(data1$bathrooms_text)))
+data1$bathrooms_text[is.na(data1$bathrooms_text)] <- mode_val
+
+#mean/most frequent value
+
+data1$bedrooms <- as.numeric(data1$bedrooms)
+data1$bedrooms[is.na(data1$bedrooms)] <- mean(data1$bedrooms, na.rm = TRUE)
+
+data1$beds <- as.numeric(data1$beds)
+data1$beds[is.na(data1$beds)] <- mean(data1$beds, na.rm = TRUE)
+
+data1$review_scores_rating <- as.numeric(data1$review_scores_rating)
+data1$review_scores_rating[is.na(data1$review_scores_rating)] <- mean(data1$review_scores_rating, na.rm = TRUE)
+
+data1$review_scores_cleanliness <- as.numeric(data1$review_scores_cleanliness)
+data1$review_scores_cleanliness[is.na(data1$review_scores_cleanliness)] <- mean(data1$review_scores_cleanliness, na.rm = TRUE)
+
+data1$review_scores_checkin <- as.numeric(data1$review_scores_checkin)
+data1$review_scores_checkin[is.na(data1$review_scores_checkin)] <- mean(data1$review_scores_checkin, na.rm = TRUE)
+
+data1$review_scores_communication <- as.numeric(data1$review_scores_communication)
+data1$review_scores_communication[is.na(data1$review_scores_communication)] <- mean(data1$review_scores_communication, na.rm = TRUE)
+
+data1$review_scores_location <- as.numeric(data1$review_scores_location)
+data1$review_scores_location[is.na(data1$review_scores_location)] <- mean(data1$review_scores_location, na.rm = TRUE)
+
+data1$review_scores_value <- as.numeric(data1$review_scores_value)
+data1$review_scores_value[is.na(data1$review_scores_value)] <- mean(data1$review_scores_value, na.rm = TRUE)
+
+data1$host_since<- as.numeric(data1$host_since)
+data1$host_since[is.na(data1$review_scores_value)] <- mean(data1$host_since, na.rm = TRUE)
+
+data1$host_neighbourhood<- as.numeric(data1$host_neighbourhood)
+data1$host_neighbourhood[is.na(data1$host_neighbourhood)] <- mean(data1$host_since, na.rm = TRUE)
+
+data1$neighbourhood<- as.numeric(data1$neighbourhood)
+data1$neighbourhood[is.na(data1$neighbourhood)] <- mean(data1$host_since, na.rm = TRUE)
+
+data1$reviews_per_month <- as.numeric(data1$reviews_per_month)
+data1$reviews_per_month[is.na(data1$reviews_per_month)] <- mean(data1$reviews_per_month, na.rm = TRUE)
+
+
+#Drop outliers 
+
+data1 <- subset(data1, bathrooms_text != "0 baths" & bathrooms_text != "Half-bath" & bathrooms_text != "0 shared baths")
+
+
+#Convert "character" to "factor"
+data1 = data1 %>%
+  mutate(across(where(is.character),factor))
+
+# Convert "logical"to "numeric"
+data1$host_is_superhost <- as.numeric(data1$host_is_superhost)
+data1$host_has_profile_pic <- as.numeric(data1$host_has_profile_pic)
+data1$host_identity_verified <- as.numeric(data1$host_identity_verified)
+data1$has_availability <- as.numeric(data1$has_availability)
+data1$instant_bookable <- as.numeric(data1$instant_bookable)
+
+#Drop
+data1[is.na(data1)] <- 0
+
+summary(data1)
+
+#count at 5
+data1$host_listings_count[data1$host_listings_count > 5] <- 5
+data1$bedrooms[data1$bedrooms > 5] <- 5
+data1$beds[data1$beds > 10] <- 10
+
+data1$bathrooms_text <- ifelse(data1$bathrooms_text == "4.5 baths", "4 baths",
+                                   ifelse(data1$bathrooms_text == "5 baths", "4 baths",
+                                          ifelse(data1$bathrooms_text == "5.5 baths", "4 baths",
+                                                 ifelse(data1$bathrooms_text == "11 baths", "4 baths", data1$bathrooms_text))))
+
+#Analysis
+data1$crrr <- as.factor(data1$city)
+Freq_table <- tab1(data1$crrr, sort.group = "decreasing", cum.percent = TRUE)
+Freq_df <- as.data.frame(Freq_table$output.table)
+View(Freq_df)
+summary(data1$crrr)
+
+
+#Visualizations
+
+#Host Response Time
+GBarplot <- ggplot(data1, aes(x = reorder(host_response_time, host_response_time, function(x) -length(x)))) +
+  geom_bar(fill = 'pink') +  labs(x = 'Host Response Time')
+GBarplot + theme(text = element_text(size = 10))
+
+#id vs host_listings_count
+ggplot(data1, aes(x = id, y = host_listings_count, color = id)) + 
+  geom_point() +
+  labs(x = "id", y = "host_listings_count", color = "id") +
+  ggtitle("Scatter Plot of id vs host_listings_count")
+
+#accommodates by beds
+ggplot(data1, aes(x = accommodates, y = beds)) + 
+  geom_boxplot() +
+  labs(x = "accommodates", y = "beds") +
+  ggtitle("Box Plot of accommodates by beds")
+
+#Bedrooms vs Beds
+ggplot(data1, aes(x = bedrooms, y = beds)) +
+  geom_point(color = "red") +
+  labs(x = "Bedrooms", y = "Beds", title = "Scatter Plot of Bedrooms vs Beds")
+
+#Min and Max Nights by ID
+ggplot(data1, aes(x = id, y = minimum_nights, group = 1)) +
+  geom_line(color = "purple") +
+  geom_line(aes(y = maximum_nights), color = "yellow") +
+  labs(x = "ID", y = "Number of Nights") +
+  ggtitle("Minimum and Maximum Nights by ID")
+
+#Room Type vs Property Type
+ggplot(data1, aes(x = room_type, y = property_type)) +
+  geom_point(color = "yellow") +
+  labs(x = "Room Type", y = "Property Type", title = "Scatter Plot of Room Type vs Property Type")
+
+#beds, bedrooms vs price
+ggplot(data1, aes(x = price, y = beds)) +
+  geom_point() +
+  labs(x = "price", y = "beds") +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(bedrooms ~ .)
+
+#ID vs accommodates
+ggplot(data1, aes(x = id, y = accommodates, color = accommodates)) + 
+geom_point() +
+  labs(x = "ID", y = "accommodates", color = "accommodates") +
+  ggtitle("Scatter Plot of listing ID vs accommodates")
+
+#reviews vs Reviews per Month
+ggplot(data1, aes(x = number_of_reviews, y = reviews_per_month)) +
+  geom_point(color = "orange") +
+  labs(x = "Number of reviews", y = "Reviews per Month", title = "Scatter Plot of Number of reviews vs Reviews per Month")
+
+#Correlation
+correlation_matrix <- cor(data1[, sapply(data1, is.numeric)], method = "pearson")
+print(correlation_matrix)
+
+#correlation matrix
+
+library(ggcorrplot)
+ggcorrplot(correlation_matrix)
+
+#Lasso model
+
+library(glmnet)
+
+#data split
+train_idx <- sample(nrow(data1), nrow(data1)*0.7)
+train_data <- data1[train_idx, ]
+test_data <- data1[-train_idx, ]
+
+x_train <- data.matrix(train_data[, -which(names(train_data) == "price")])
+y_train <- train_data$price
+y_train <- as.numeric(y_train)
+
+lasso_model <- cv.glmnet(x_train, y_train, alpha = 1, standardize = TRUE)
+plot(lasso_model)
+
+optimal_lambda <- lasso_model$lambda.min
+final_lasso_model <- glmnet(x_train, y_train, alpha = 1, standardize = TRUE, lambda = optimal_lambda)
+lasso_coef <- coef(final_lasso_model)
+
+#Print 
+important_features <- which(lasso_coef != 0)
+names(important_features) <- colnames(x_train)[important_features]
+names(important_features)
+
+city_count <- table(data1$city)
+print(city_count)
+
+#splitting datasset
+DataSetA = subset(data1, city %in% "Berlin_15_Sep_2022_listings (1).csv")
+DataSetB = subset(data1, city %in% c("Athens_20_Sep_2022_listings (1).csv", "Brussels_18_Sep_2022_listings (1).csv"))
+
+#Fitting regression trees
+
+library(rpart)
+
+cleaned_data <- DataSetA[, c("price", "host_response_time", "room_type", "city", "crrr")]
+
+#convert price numeric
+cleaned_data$price <- gsub(",", "", cleaned_data$price)
+cleaned_data$price <- gsub("\\$", "", cleaned_data$price)
+cleaned_data$price <- as.numeric(cleaned_data$price)
+
+set.seed(123)
+train_index <- sample(1:nrow(cleaned_data), round(0.7 * nrow(cleaned_data)))
+train_clean <- cleaned_data[train_index, ]
+test_clean <- cleaned_data[-train_index, ]
+
+#decision tree model
+model <- rpart(price ~ host_response_time + room_type + city + crrr, data = train_clean)
+
+# Print the tree model summary
+summary(model)
+
+
+#DatasetA
+# Polynomial regression
+fit <- lm(price ~ poly(accommodates, 4), data = DataSetA)
+DataSetA <- na.omit(DataSetA)
+
+library(ggplot2)
+
+set.seed(123)
+split_ratio <- 0.7
+train_index <- sample(1:nrow(DataSetA), round(nrow(DataSetA) * split_ratio))
+train_data <- DataSetA[train_index, ]
+test_data <- DataSetA[-train_index, ]
+
+# Polynomial regression
+fit <- lm(price ~ poly(accommodates, 4), data = train_data)
+
+#predictions 
+preds <- predict(fit, newdata = test_data)
+
+#RMSE
+rmse <- sqrt(mean((test_data$price - preds)^2))
+
+#Print RMSE
+cat("Polynomial regression RMSE:", rmse, "\n")
+
+#Plot 
+ggplot(DataSetA, aes(x = accommodates, y = price)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 4), se = FALSE, color = "blue") +
+  theme_minimal()
+
+
+# Svm model DATASET A
+library(caTools)
+library(e1071)
+library(caret)
+library(caTools)
+
+
+set.seed(123)
+split_index <- sample.split(DataSetA$price, SplitRatio = 0.7)
+
+
+dummy_var_transform <- dummyVars(price ~ ., data = DataSetA)
+data_proc <- predict(dummy_var_transform, DataSetA)
+
+preProc <- preProcess(data_proc, method = c("center", "scale"))
+data4 <- predict(preProc, data_proc)
+
+
+train4 <- data4[split_index, ]
+test4 <- data4[!split_index, ]
+
+#SVM model
+x_train <- train4
+y_train <- DataSetA$price[split_index]
+y_train <- as.numeric(DataSetA$price[split_index])
+
+svm_model <- svm(x_train, y_train, type = "eps-regression", kernel = "radial")
+
+#Predictions
+x_test <- test4
+y_test <- DataSetA$price[!split_index]
+
+svm_preds <- predict(svm_model, x_test)
+
+
+svm_MSE <- mean((y_test - svm_preds)^2)
+svm_RMSE <- sqrt(svm_MSE)
+
+cat("SVM MSE:", svm_MSE, "\n")
+cat("SVM RMSE:", svm_RMSE, "\n")
+
+#Svm model DATASET B 
+library(caTools)
+library(e1071)
+library(caret)
+library(caTools)
+
+
+set.seed(123)
+split_index <- sample.split(DataSetB$price, SplitRatio = 0.7)
+
+
+dummy_var_transform <- dummyVars(price ~ ., data = DataSetB)
+data_proc <- predict(dummy_var_transform, DataSetB)
+
+preProc <- preProcess(data_proc, method = c("center", "scale"))
+data4 <- predict(preProc, data_proc)
+
+
+train4 <- data4[split_index, ]
+test4 <- data4[!split_index, ]
+
+#SVM model
+x_train <- train4
+y_train <- DataSetB$price[split_index]
+y_train <- as.numeric(DataSetB$price[split_index])
+
+svm_model <- svm(x_train, y_train, type = "eps-regression", kernel = "radial")
+
+#Predictions
+x_test <- test4
+y_test <- DataSetB$price[!split_index]
+
+svm_preds <- predict(svm_model, x_test)
+
+
+svm_MSE <- mean((y_test - svm_preds)^2)
+svm_RMSE <- sqrt(svm_MSE)
+
+cat("SVM MSE:", svm_MSE, "\n")
+cat("SVM RMSE:", svm_RMSE, "\n")
+
+#Svm model DATASET B 
+library(caTools)
+library(e1071)
+library(caret)
+library(caTools)
+
+
+set.seed(123)
+split_index <- sample.split(DataSetB$price, SplitRatio = 0.7)
+
+
+dummy_var_transform <- dummyVars(price ~ ., data = DataSetB)
+data_proc <- predict(dummy_var_transform, DataSetB)
+
+preProc <- preProcess(data_proc, method = c("center", "scale"))
+data4 <- predict(preProc, data_proc)
+
+
+train4 <- data4[split_index, ]
+test4 <- data4[!split_index, ]
+
+#SVM model
+x_train <- train4
+y_train <- DataSetB$price[split_index]
+y_train <- as.numeric(DataSetB$price[split_index])
+
+svm_model <- svm(x_train, y_train, type = "eps-regression", kernel = "radial")
+
+#Predictions
+x_test <- test4
+y_test <- DataSetB$price[!split_index]
+
+svm_preds <- predict(svm_model, x_test)
+
+
+svm_MSE <- mean((y_test - svm_preds)^2)
+svm_RMSE <- sqrt(svm_MSE)
+
+cat("SVM MSE:", svm_MSE, "\n")
+cat("SVM RMSE:", svm_RMSE, "\n")
+
+#Cross validation
+# Convert the price variable to numeric
+sum(is.na(DataSetA$bedrooms))
+sum(is.na(DataSetA$price))
+DataSetA <- na.omit(DataSetA)
+
+DataSetA$price <- as.numeric(as.character(DataSetA$bedrooms))
+
+glm.fit <- glm(review_scores_rating ~ price, data = DataSetA)
+coef(glm.fit)
+
+lm.fit <- lm(review_scores_rating ~ price, data = DataSetA)
+coef(lm.fit)
+
+library(boot)
+glm.fit <- glm(review_scores_rating ~ price, data = DataSetA)
+cv.err <- cv.glm(DataSetA, glm.fit)
+cv.err$delta
+
+cv.error <- rep(0, 10)
+for (i in 1:10) {
+  glm.fit <- glm(review_scores_rating ~ poly(price, i), data = DataSetA)
+  cv.error[i] <- cv.glm(DataSetA, glm.fit)$delta[1]
+}
+cv.error
+```
+
+
+
+
+
